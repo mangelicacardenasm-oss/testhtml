@@ -1,0 +1,921 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Monitor de Facturación Electrónica</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #0B1F3A;
+    --navy-2: #13294B;
+    --blue: #2F6FED;
+    --blue-soft: #E8EFFD;
+    --ink: #1A2433;
+    --muted: #5B6778;
+    --line: #DCE2EA;
+    --bg: #F6F8FB;
+    --white: #FFFFFF;
+    --ok: #1E9E5A;
+    --warn: #E8A317;
+    --err: #D64545;
+    --W: 1920px;
+    --H: 1080px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    width: 100%; height: 100%;
+    background: #0A1426;
+    font-family: 'IBM Plex Sans', system-ui, sans-serif;
+    color: var(--ink);
+    overflow: hidden;
+  }
+
+  /* ---------- Escenario 16:9 escalable ---------- */
+  .stage {
+    position: absolute;
+    top: 50%; left: 50%;
+    width: var(--W); height: var(--H);
+    transform-origin: center center;
+  }
+
+  .slide {
+    position: absolute; inset: 0;
+    width: var(--W); height: var(--H);
+    background: var(--white);
+    padding: 88px 120px 150px;
+    display: flex; flex-direction: column;
+    opacity: 0; visibility: hidden;
+    transition: opacity .35s ease;
+  }
+  .slide.active { opacity: 1; visibility: visible; }
+
+  /* Pie común */
+  .slide .footer {
+    position: absolute; left: 120px; right: 120px; bottom: 48px;
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 20px; color: var(--muted);
+    border-top: 1px solid var(--line); padding-top: 20px;
+  }
+  .slide .footer .num { font-family: 'IBM Plex Mono', monospace; }
+
+  /* Encabezado de diapositiva */
+  .eyebrow {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 22px; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--blue); margin-bottom: 18px;
+  }
+  h2.title {
+    font-size: 64px; font-weight: 600; line-height: 1.1;
+    color: var(--navy); letter-spacing: -.01em;
+    max-width: 1500px;
+  }
+  .lead {
+    font-size: 30px; color: var(--muted); margin-top: 20px;
+    max-width: 1400px; line-height: 1.4; font-weight: 300;
+  }
+
+  /* ---------- Diapositiva 1: Portada ---------- */
+  .cover {
+    background: var(--navy);
+    color: var(--white);
+    padding: 120px 140px;
+    justify-content: space-between;
+  }
+  .cover::before {
+    content: ""; position: absolute; inset: 0;
+    background:
+      radial-gradient(1200px 700px at 100% 0%, rgba(47,111,237,.28), transparent 60%);
+    pointer-events: none;
+  }
+  .cover .top { position: relative; display: flex; justify-content: space-between; align-items: center; }
+  .cover .tag {
+    font-family: 'IBM Plex Mono', monospace; font-size: 22px;
+    letter-spacing: .14em; text-transform: uppercase; color: #9DB8F5;
+  }
+  .cover .client {
+    font-size: 22px; color: #9AA9C0; border: 1px solid #2A4268;
+    padding: 10px 22px; border-radius: 999px;
+  }
+  .cover .main { position: relative; }
+  .cover h1 {
+    font-size: 104px; font-weight: 600; line-height: 1.02; letter-spacing: -.02em;
+    max-width: 1400px;
+  }
+  .cover h1 span { color: #7FA6F7; }
+  .cover .sub {
+    margin-top: 36px; font-size: 34px; font-weight: 300; color: #C3CEDF;
+  }
+
+  /* Flujo decorativo de la portada */
+  .flow {
+    position: relative; display: flex; align-items: flex-start; gap: 32px;
+    margin-top: 72px;
+  }
+  .flow .node {
+    display: flex; flex-direction: column; align-items: flex-start; gap: 12px;
+  }
+  .flow .dot {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: var(--blue); box-shadow: 0 0 0 8px rgba(47,111,237,.18);
+  }
+  .flow .node:last-child .dot { background: var(--ok); box-shadow: 0 0 0 8px rgba(30,158,90,.2); }
+  .flow .lbl { font-size: 26px; font-weight: 500; }
+  .flow .sml { font-size: 19px; color: #8FA0BA; font-family: 'IBM Plex Mono', monospace; }
+  .flow .bar {
+    flex: 0 0 120px; height: 2px; margin-top: 10px;
+    background: repeating-linear-gradient(90deg, #4A6796 0 10px, transparent 10px 18px);
+  }
+
+  .cover .bottom {
+    position: relative; display: flex; justify-content: space-between; align-items: flex-end;
+    font-size: 24px; color: #9AA9C0;
+  }
+  .cover .bottom strong { color: var(--white); font-weight: 500; }
+
+  /* ---------- Diapositiva 2: Contexto ---------- */
+  .cols {
+    display: grid; grid-template-columns: 1.15fr 1fr; gap: 56px;
+    margin-top: 52px; flex: 1; min-height: 0;
+  }
+  .col-h {
+    font-size: 24px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em;
+    margin-bottom: 24px; display: flex; align-items: center; gap: 14px;
+  }
+  .col-h .pill { width: 14px; height: 14px; border-radius: 50%; }
+  .today .col-h { color: var(--err); }
+  .today .col-h .pill { background: var(--err); }
+  .target .col-h { color: var(--ok); }
+  .target .col-h .pill { background: var(--ok); }
+
+  .pain {
+    display: grid; grid-template-columns: 64px 1fr; gap: 24px;
+    padding: 24px 32px; border: 1px solid var(--line); border-radius: 14px;
+    background: var(--bg); margin-bottom: 18px;
+  }
+  .pain .ix {
+    font-family: 'IBM Plex Mono', monospace; font-size: 26px; color: var(--err);
+    border: 2px solid rgba(214,69,69,.35); border-radius: 10px;
+    height: 56px; display: flex; align-items: center; justify-content: center;
+  }
+  .pain h3 { font-size: 30px; font-weight: 600; color: var(--navy); margin-bottom: 6px; }
+  .pain p { font-size: 23px; color: var(--muted); line-height: 1.4; }
+
+  .systems { display: flex; gap: 10px; margin-top: 12px; }
+  .systems span {
+    font-family: 'IBM Plex Mono', monospace; font-size: 18px;
+    padding: 4px 12px; border-radius: 6px; background: var(--white);
+    border: 1px solid var(--line); color: var(--ink);
+  }
+
+  .target { display: flex; flex-direction: column; }
+  .target-box {
+    background: var(--navy); color: var(--white); border-radius: 18px;
+    padding: 40px 48px; flex: 1;
+    display: flex; flex-direction: column; justify-content: space-between;
+  }
+  .target-box .one {
+    font-size: 40px; font-weight: 600; line-height: 1.2;
+  }
+  .target-box .one em { font-style: normal; color: #7FA6F7; }
+  .target-box ul { list-style: none; margin-top: 28px; }
+  .target-box li {
+    font-size: 25px; line-height: 1.4; color: #D3DCEA;
+    padding: 14px 0 14px 44px; position: relative;
+    border-top: 1px solid #22385C;
+  }
+  .target-box li::before {
+    content: ""; position: absolute; left: 0; top: 22px;
+    width: 18px; height: 18px; border-radius: 50%;
+    border: 3px solid var(--ok);
+  }
+  .trace {
+    margin-top: 28px; padding: 18px 22px; border-radius: 10px;
+    background: rgba(255,255,255,.06); font-family: 'IBM Plex Mono', monospace;
+    font-size: 20px; color: #B9C7DD; display: flex; gap: 14px; align-items: center; flex-wrap: wrap;
+  }
+  .trace b { color: var(--white); font-weight: 500; }
+  .trace i { font-style: normal; color: #5F7BA6; }
+
+  /* ---------- Diapositiva: Monitor interactivo (app Fiori simulada) ---------- */
+  .slide.demo { padding: 64px 120px 120px; }
+  .demo-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 40px; }
+  .demo-head h2.title { font-size: 50px; max-width: 1300px; }
+  .demo-tag {
+    flex: none; font-family: 'IBM Plex Mono', monospace; font-size: 18px; color: var(--blue);
+    border: 1px dashed var(--blue); border-radius: 8px; padding: 8px 14px; margin-bottom: 6px;
+  }
+
+  .mon {
+    --f-shell: #1D2D3E; --f-bg: #F5F6F7; --f-line: #E1E4E8; --f-blue: #0064D9;
+    --f-text: #1D2D3E; --f-sub: #556B82;
+    position: relative; margin-top: 28px; flex: 1; min-height: 0;
+    border: 1px solid #C9D1DB; border-radius: 14px; overflow: hidden;
+    background: var(--f-bg); display: flex; flex-direction: column;
+    font-size: 18px; color: var(--f-text);
+  }
+  .mon button, .mon select, .mon input { font-family: inherit; font-size: 17px; color: inherit; }
+
+  .m-shell {
+    flex: none; height: 52px; background: var(--f-shell); color: #fff;
+    display: flex; align-items: center; gap: 18px; padding: 0 24px; font-size: 19px;
+  }
+  .m-shell .home { width: 26px; height: 26px; border-radius: 6px; background: #3A5068; }
+  .m-shell .ttl { font-weight: 500; }
+  .m-shell .usr {
+    margin-left: auto; width: 32px; height: 32px; border-radius: 50%; background: #3A5068;
+    display: flex; align-items: center; justify-content: center; font-size: 14px;
+  }
+
+  .m-filters {
+    flex: none; display: flex; align-items: flex-end; gap: 18px;
+    padding: 14px 24px; background: #fff; border-bottom: 1px solid var(--f-line);
+  }
+  .m-field { display: flex; flex-direction: column; gap: 4px; }
+  .m-field label { font-size: 14px; color: var(--f-sub); }
+  .m-field input, .m-field select {
+    height: 38px; border: 1px solid #A9B4BE; border-radius: 8px; padding: 0 12px; background: #fff;
+  }
+  .m-field input { width: 380px; }
+  .m-field select { min-width: 200px; }
+  .mon .m-link {
+    margin-left: auto; background: none; border: none; color: var(--f-blue); cursor: pointer;
+    height: 38px; padding: 0 6px;
+  }
+
+  .m-kpis { flex: none; display: flex; gap: 14px; padding: 14px 24px 4px; }
+  .m-kpi {
+    flex: 1; display: flex; align-items: center; gap: 14px; text-align: left;
+    background: #fff; border: 1px solid var(--f-line); border-radius: 12px;
+    padding: 10px 18px; cursor: pointer;
+  }
+  .m-kpi:hover { border-color: #9DB3CC; }
+  .m-kpi.on { border-color: var(--f-blue); box-shadow: inset 0 0 0 1px var(--f-blue); }
+  .m-kpi .n { font-size: 34px; font-weight: 600; line-height: 1; min-width: 44px; }
+  .m-kpi .l { font-size: 16px; color: var(--f-sub); }
+
+  .m-table-wrap {
+    flex: 1; min-height: 0; margin: 10px 24px 16px; background: #fff;
+    border: 1px solid var(--f-line); border-radius: 12px; overflow: auto;
+  }
+  .m-table { width: 100%; border-collapse: collapse; }
+  .m-table th {
+    position: sticky; top: 0; background: #fff; z-index: 1;
+    text-align: left; font-size: 15px; font-weight: 600; color: var(--f-sub);
+    padding: 12px 12px; border-bottom: 1px solid var(--f-line); white-space: nowrap;
+  }
+  .m-table td {
+    padding: 0 12px; height: 46px; border-bottom: 1px solid #EEF0F2; white-space: nowrap;
+  }
+  .m-table tbody tr { cursor: pointer; }
+  .m-table tbody tr:hover td { background: #F2F7FD; }
+  .m-table tbody tr.sel td { background: #E8F1FC; }
+  .m-table .mono { font-family: 'IBM Plex Mono', monospace; font-size: 16px; }
+  .m-table .sub { color: var(--f-sub); }
+  .m-table .chev { color: #8396A8; text-align: right; }
+  .m-empty td { text-align: center; color: var(--f-sub); height: 120px; cursor: default; }
+
+  .st { display: inline-flex; align-items: center; gap: 8px; font-weight: 500; }
+  .st svg { width: 20px; height: 20px; flex: none; }
+  .st.ok { color: #1B7A45; } .st.err { color: #B42B2B; } .st.warn { color: #8A5A00; }
+
+  .m-file {
+    border: 1px solid #C9D3DD; background: #fff; border-radius: 6px; cursor: pointer;
+    font-family: 'IBM Plex Mono', monospace !important; font-size: 13px !important;
+    padding: 3px 8px; color: var(--f-blue) !important; margin-right: 6px;
+  }
+  .m-file:hover { background: #EEF4FC; }
+
+  /* Panel de detalle */
+  .m-detail {
+    position: absolute; top: 52px; right: 0; bottom: 0; width: 780px;
+    background: #fff; border-left: 1px solid #C9D1DB;
+    box-shadow: -18px 0 40px rgba(29,45,62,.14);
+    transform: translateX(105%); transition: transform .3s ease;
+    display: flex; flex-direction: column; z-index: 3;
+  }
+  .m-detail.open { transform: none; }
+  .d-head { flex: none; padding: 22px 28px 16px; border-bottom: 1px solid var(--f-line); }
+  .d-top { display: flex; justify-content: space-between; align-items: flex-start; }
+  .d-head h3 { font-size: 30px; font-weight: 600; font-family: 'IBM Plex Mono', monospace; }
+  .d-head .d-sub { color: var(--f-sub); margin-top: 4px; font-size: 17px; }
+  .d-close {
+    border: none; background: #EEF1F4; width: 36px; height: 36px; border-radius: 50%;
+    cursor: pointer; font-size: 18px !important;
+  }
+  .d-actions { display: flex; gap: 10px; margin-top: 14px; align-items: center; }
+  .btn {
+    height: 38px; padding: 0 16px; border-radius: 8px; cursor: pointer;
+    border: 1px solid #A9B4BE; background: #fff; color: var(--f-blue) !important; font-weight: 500;
+  }
+  .btn.pri { background: var(--f-blue); border-color: var(--f-blue); color: #fff !important; }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .d-hint { font-size: 14px; color: var(--f-sub); }
+
+  .d-body { flex: 1; overflow: auto; padding: 8px 28px 24px; }
+  .d-sec { padding: 16px 0; border-bottom: 1px solid #EEF0F2; }
+  .d-sec:last-child { border-bottom: none; }
+  .d-sec h4 {
+    font-size: 14px; letter-spacing: .08em; text-transform: uppercase; color: var(--f-sub);
+    margin-bottom: 12px; font-weight: 600;
+  }
+  .d-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 24px; }
+  .d-grid .k { font-size: 14px; color: var(--f-sub); }
+  .d-grid .v { font-size: 17px; }
+  .d-id { margin-bottom: 10px; }
+  .d-id .k { font-size: 14px; color: var(--f-sub); }
+  .d-id .v { font-family: 'IBM Plex Mono', monospace; font-size: 15px; word-break: break-all; }
+  .d-pre {
+    background: #F5F6F7; border: 1px solid var(--f-line); border-radius: 8px;
+    padding: 12px 14px; font-family: 'IBM Plex Mono', monospace; font-size: 15px;
+    white-space: pre-wrap; word-break: break-all;
+  }
+  .d-msg {
+    margin-top: 10px; padding: 10px 14px; border-radius: 8px; font-size: 16px;
+    background: #FDECEC; color: #8E1F1F; border-left: 4px solid var(--err);
+  }
+
+  /* Trazabilidad */
+  .trk { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; }
+  .trk .s { position: relative; padding-top: 34px; font-size: 15px; }
+  .trk .s::before {
+    content: ""; position: absolute; top: 12px; left: 22px; right: 0; height: 2px; background: #D5DCE3;
+  }
+  .trk .s:last-child::before { display: none; }
+  .trk .s.done::before { background: var(--ok); }
+  .trk .ic {
+    position: absolute; top: 0; left: 0; width: 26px; height: 26px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700;
+    background: #E4E9EE; color: #7C8DA0;
+  }
+  .trk .done .ic { background: var(--ok); color: #fff; }
+  .trk .fail .ic { background: var(--err); color: #fff; }
+  .trk .wait .ic { background: var(--warn); color: #fff; }
+  .trk .nm { font-weight: 600; }
+  .trk .ds { color: var(--f-sub); font-size: 14px; margin-top: 2px; padding-right: 10px; }
+
+  /* Modal XML y toast */
+  .m-modal {
+    position: absolute; inset: 0; background: rgba(29,45,62,.45); z-index: 5;
+    display: none; align-items: center; justify-content: center;
+  }
+  .m-modal.open { display: flex; }
+  .m-modal .box {
+    width: 1000px; max-height: 88%; background: #fff; border-radius: 14px;
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  .m-modal .bh {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 16px 22px; border-bottom: 1px solid var(--f-line); font-weight: 600; font-size: 20px;
+  }
+  .m-modal pre {
+    margin: 0; padding: 18px 22px; overflow: auto; font-family: 'IBM Plex Mono', monospace;
+    font-size: 15px; line-height: 1.55; background: #FAFBFC; color: #24384D;
+  }
+  .m-modal .xt { color: #0B5CAD; } .m-modal .xa { color: #8A4B00; } .m-modal .xc { color: #6B7C8D; font-style: italic; }
+  .m-modal .bf { padding: 10px 22px; font-size: 14px; color: var(--f-sub); border-top: 1px solid var(--f-line); }
+
+  .m-toast {
+    position: absolute; left: 50%; bottom: 26px; transform: translate(-50%, 20px);
+    background: #1D2D3E; color: #fff; padding: 12px 22px; border-radius: 10px; font-size: 17px;
+    opacity: 0; pointer-events: none; transition: opacity .25s, transform .25s; z-index: 6;
+  }
+  .m-toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  /* ---------- Controles ---------- */
+  .controls {
+    position: fixed; left: 50%; transform: translateX(-50%); bottom: 16px; z-index: 10;
+    display: flex; align-items: center; gap: 10px;
+    font-family: 'IBM Plex Mono', monospace; font-size: 14px; color: #C3CEDF;
+    background: rgba(11,31,58,.85); padding: 8px 10px; border-radius: 999px;
+    opacity: .35; transition: opacity .2s;
+  }
+  .controls:hover { opacity: 1; }
+  .controls button {
+    background: transparent; border: 1px solid #2A4268; color: #E6ECF5;
+    width: 32px; height: 32px; border-radius: 50%; cursor: pointer; font-size: 15px;
+  }
+  .controls button:hover { background: #1C3560; }
+  .progress {
+    position: fixed; left: 0; top: 0; height: 4px; background: var(--blue);
+    z-index: 10; transition: width .3s ease;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .slide, .progress, .controls { transition: none; }
+  }
+
+  /* ---------- Impresión: una diapositiva por página ---------- */
+  @page { size: 1920px 1080px; margin: 0; }
+  @media print {
+    html, body { overflow: visible; height: auto; background: var(--white); }
+    .stage { position: static; transform: none !important; width: auto; height: auto; }
+    .slide {
+      position: relative; opacity: 1; visibility: visible;
+      page-break-after: always; break-after: page;
+      -webkit-print-color-adjust: exact; print-color-adjust: exact;
+    }
+    .slide:last-child { page-break-after: auto; break-after: auto; }
+    .controls, .progress, .m-detail, .m-modal, .m-toast { display: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="progress" id="progress"></div>
+
+<main class="stage" id="stage">
+
+  <!-- 1 · Portada -->
+  <section class="slide cover">
+    <div class="top">
+      <div class="tag">Propuesta de diseño · En aprobación</div>
+      <div class="client">Propuesta Monitor FE · Fanalca</div>
+    </div>
+
+    <div class="main">
+      <h1>Monitor de <span>Facturación Electrónica</span></h1>
+      <div class="sub">SAP S/4HANA · App Fiori · Integración con SAP CPI</div>
+
+      <div class="flow">
+        <div class="node"><div class="dot"></div><div class="lbl">SAP S/4HANA</div><div class="sml">Programa Z · XML UBL 2.1</div></div>
+        <div class="bar"></div>
+        <div class="node"><div class="dot"></div><div class="lbl">SAP CPI</div><div class="sml">iFlow</div></div>
+        <div class="bar"></div>
+        <div class="node"><div class="dot"></div><div class="lbl">Proveedor Tecnológico</div><div class="sml">Transmisión a la DIAN</div></div>
+        <div class="bar"></div>
+        <div class="node"><div class="dot"></div><div class="lbl">DIAN</div><div class="sml">Validación y CUFE/CUDE</div></div>
+      </div>
+    </div>
+
+    <div class="bottom">
+      <div>Audiencia: <strong>equipo técnico del proveedor tecnológico</strong> y <strong>usuarios funcionales de negocio</strong></div>
+      <div>Octubre de 2026</div>
+    </div>
+  </section>
+
+  <!-- 2 · Contexto y problema -->
+  <section class="slide">
+    <div class="eyebrow">01 · Contexto</div>
+    <h2 class="title">Un documento atraviesa cuatro sistemas y nadie ve su recorrido completo</h2>
+
+    <div class="cols">
+      <div class="today">
+        <div class="col-h"><span class="pill"></span>Situación actual</div>
+
+        <div class="pain">
+          <div class="ix">01</div>
+          <div>
+            <h3>Visibilidad fragmentada</h3>
+            <p>El estado de cada factura queda repartido entre sistemas distintos, cada uno con su propio monitor y sus propios usuarios.</p>
+            <div class="systems"><span>S/4HANA</span><span>CPI</span><span>PT</span><span>DIAN</span></div>
+          </div>
+        </div>
+
+        <div class="pain">
+          <div class="ix">02</div>
+          <div>
+            <h3>Rechazos detectados tarde</h3>
+            <p>Un error en CPI o un rechazo de la DIAN se descubre cuando el cliente reclama o al cierre, no cuando ocurre.</p>
+          </div>
+        </div>
+
+        <div class="pain">
+          <div class="ix">03</div>
+          <div>
+            <h3>Reproceso manual y sin trazabilidad</h3>
+            <p>Corregir y reenviar exige pasar por varios equipos, y no queda registro de qué se envió, cuándo y con qué resultado.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="target">
+        <div class="col-h"><span class="pill"></span>Nuestra propuesta</div>
+        <div class="target-box">
+          <div>
+            <div class="one">Un <em>único punto de control</em> en SAP Fiori para todo el ciclo del documento electrónico.</div>
+            <ul>
+              <li>Estado de cada documento en cada tramo, actualizado automáticamente</li>
+              <li>Mensaje de error claro con indicación del sistema origen</li>
+              <li>Reenvío desde la misma aplicación, con control por rol</li>
+            </ul>
+          </div>
+          <div class="trace">
+            <b>Factura SAP</b><i>→</i><b>ID mensaje CPI</b><i>→</i><b>Respuesta PT</b><i>→</i><b>CUFE</b>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <span>Monitor de Facturación Electrónica · SAP S/4HANA</span>
+      <span class="num"></span>
+    </div>
+  </section>
+
+  <!-- Monitor propuesto · demo interactiva -->
+  <section class="slide demo">
+    <div class="eyebrow">04 · Monitor propuesto</div>
+    <div class="demo-head">
+      <h2 class="title">Una sola pantalla para revisar el estado de cada documento y actuar sobre él</h2>
+      <div class="demo-tag">Demo interactiva · Datos de ejemplo</div>
+    </div>
+
+    <div class="mon" id="mon">
+      <div class="m-shell">
+        <div class="home" aria-hidden="true"></div>
+        <div class="ttl">Monitor de Facturación Electrónica</div>
+        <div class="usr" aria-hidden="true">US</div>
+      </div>
+
+      <div class="m-filters">
+        <div class="m-field">
+          <label for="f-q">Buscar</label>
+          <input id="f-q" type="search" placeholder="Documento SAP, rango DIAN o CUFE">
+        </div>
+        <div class="m-field">
+          <label for="f-soc">Sociedad</label>
+          <select id="f-soc"><option value="">Todas</option><option>CO01</option><option>CO02</option></select>
+        </div>
+        <div class="m-field">
+          <label for="f-tipo">Tipo de documento DIAN</label>
+          <select id="f-tipo">
+            <option value="">Todos</option>
+            <option value="01">01 · Factura de venta</option>
+            <option value="02">02 · Factura de exportación</option>
+            <option value="91">91 · Nota crédito</option>
+            <option value="92">92 · Nota débito</option>
+          </select>
+        </div>
+        <div class="m-field">
+          <label for="f-st">Estado</label>
+          <select id="f-st">
+            <option value="">Todos</option>
+            <option value="ok">Aceptado</option>
+            <option value="err">Rechazado / error</option>
+            <option value="warn">En proceso</option>
+          </select>
+        </div>
+        <button class="m-link" id="m-reset" type="button">Restablecer demo</button>
+      </div>
+
+      <div class="m-kpis" id="m-kpis"></div>
+
+      <div class="m-table-wrap">
+        <table class="m-table">
+          <thead>
+            <tr>
+              <th>Estado</th><th>Sociedad</th><th>Tipo DIAN</th><th>Doc. SAP</th><th>Rango DIAN</th>
+              <th>Código</th><th>Emisión</th><th>Usuario envío</th><th>Reenvío</th><th>Archivos</th><th></th>
+            </tr>
+          </thead>
+          <tbody id="m-rows"></tbody>
+        </table>
+      </div>
+
+      <aside class="m-detail" id="m-detail" aria-label="Detalle del documento"></aside>
+
+      <div class="m-modal" id="m-modal" role="dialog" aria-modal="true" aria-label="XML del documento">
+        <div class="box">
+          <div class="bh"><span id="m-modal-t">Request enviado al PT</span><button class="d-close" id="m-modal-x" type="button" aria-label="Cerrar">✕</button></div>
+          <pre id="m-modal-xml"></pre>
+          <div class="bf">Extracto simplificado del XML UBL 2.1 · datos de ejemplo</div>
+        </div>
+      </div>
+
+      <div class="m-toast" id="m-toast" role="status"></div>
+    </div>
+
+    <div class="footer">
+      <span>Monitor de Facturación Electrónica · SAP S/4HANA</span>
+      <span class="num"></span>
+    </div>
+  </section>
+
+</main>
+
+<div class="controls">
+  <button id="prev" aria-label="Anterior">‹</button>
+  <span id="counter">1 / 1</span>
+  <button id="next" aria-label="Siguiente">›</button>
+  <button id="fs" aria-label="Pantalla completa (F)" title="Pantalla completa (F)">⛶</button>
+</div>
+
+<script>
+(function () {
+  const W = 1920, H = 1080;
+  const stage = document.getElementById('stage');
+  const slides = Array.from(document.querySelectorAll('.slide'));
+  const counter = document.getElementById('counter');
+  const progress = document.getElementById('progress');
+  let i = 0;
+
+  // Numeración en el pie
+  slides.forEach((s, k) => {
+    const n = s.querySelector('.footer .num');
+    if (n) n.textContent = String(k + 1).padStart(2, '0') + ' / ' + String(slides.length).padStart(2, '0');
+  });
+
+  function fit() {
+    const s = Math.min(window.innerWidth / W, window.innerHeight / H);
+    stage.style.transform = 'translate(-50%, -50%) scale(' + s + ')';
+  }
+
+  function show(n) {
+    i = Math.max(0, Math.min(slides.length - 1, n));
+    slides.forEach((s, k) => s.classList.toggle('active', k === i));
+    counter.textContent = (i + 1) + ' / ' + slides.length;
+    progress.style.width = ((i + 1) / slides.length * 100) + '%';
+    try { history.replaceState(null, '', '#' + (i + 1)); } catch (e) {}
+  }
+
+  document.addEventListener('keydown', (e) => {
+    // No navegar mientras se escribe o se usa un control del monitor
+    if (e.target.closest && e.target.closest('input, select, textarea')) return;
+    if ((e.key === ' ' || e.key === 'Enter') && e.target.closest && e.target.closest('button, a')) return;
+    if (document.querySelector('.m-modal.open') && e.key !== 'Escape') return;
+    if (['ArrowRight', 'PageDown', ' ', 'Enter'].includes(e.key)) { e.preventDefault(); show(i + 1); }
+    else if (['ArrowLeft', 'PageUp', 'Backspace'].includes(e.key)) { e.preventDefault(); show(i - 1); }
+    else if (e.key === 'Home') show(0);
+    else if (e.key === 'End') show(slides.length - 1);
+    else if (e.key === 'f' || e.key === 'F') toggleFs();
+  });
+
+  // Clic: tercio izquierdo retrocede, el resto avanza
+  stage.addEventListener('click', (e) => {
+    if (e.target.closest('.mon')) return; // los clics dentro del monitor no cambian de diapositiva
+    if (e.clientX < window.innerWidth / 3) show(i - 1); else show(i + 1);
+  });
+  document.getElementById('prev').addEventListener('click', () => show(i - 1));
+  document.getElementById('next').addEventListener('click', () => show(i + 1));
+
+  function toggleFs() {
+    if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
+    else document.exitFullscreen();
+  }
+  document.getElementById('fs').addEventListener('click', toggleFs);
+
+  window.addEventListener('resize', fit);
+  fit();
+  const start = parseInt((location.hash || '').slice(1), 10);
+  show(isNaN(start) ? 0 : start - 1);
+})();
+</script>
+<script>
+/* ---------- Monitor interactivo (datos de ejemplo) ---------- */
+(function () {
+  const root = document.getElementById('mon');
+  if (!root) return;
+
+  const TIPOS = { '01': 'Factura de venta', '02': 'Factura de exportación', '91': 'Nota crédito', '92': 'Nota débito' };
+  const ST = {
+    ok:   { txt: 'Aceptado',   svg: '<polygon points="10,1 18,5.5 18,14.5 10,19 2,14.5 2,5.5" fill="#1E9E5A"/>' },
+    err:  { txt: 'Rechazado',  svg: '<polygon points="6,1 14,1 19,6 19,14 14,19 6,19 1,14 1,6" fill="#D64545"/>' },
+    warn: { txt: 'En proceso', svg: '<circle cx="10" cy="10" r="8.5" fill="#E8A317"/>' }
+  };
+
+  // Hex pseudoaleatorio determinístico (para CUFE, TrackId, IDs de ejemplo)
+  function hex(seed, len) {
+    let h = 2166136261 >>> 0, out = '';
+    for (const c of seed) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; }
+    while (out.length < len) {
+      h ^= h << 13; h >>>= 0; h ^= h >>> 17; h ^= h << 5; h >>>= 0;
+      out += h.toString(16).padStart(8, '0');
+    }
+    return out.slice(0, len);
+  }
+  function uuid(seed) { const x = hex(seed, 32); return [x.slice(0,8), x.slice(8,12), x.slice(12,16), x.slice(16,20), x.slice(20)].join('-'); }
+
+  // fase: hasta dónde llegó el documento → 'dian' (respuesta DIAN), 'pt' (esperando DIAN), 'cpi' (falló en CPI)
+  const SEED = [
+    { soc: 'CO02', tipo: '01', doc: '90000000', rango: 'SETT9000',  st: 'ok',   cod: '200', f: '2026.02.25', h: '08:06:07', u: 'AROJAS' },
+    { soc: 'CO02', tipo: '02', doc: '80000001', rango: 'SETT80001', st: 'err',  cod: '400', f: '2026.02.25', h: '08:06:07', u: 'AROJAS', fr: '2026.02.26', hr: '08:10:07', ur: 'CARIAS', fase: 'dian',
+      msg: 'Rechazo DIAN: el documento no superó una regla de validación (mensaje de ejemplo).' },
+    { soc: 'CO02', tipo: '91', doc: '80000002', rango: 'NC800001',  st: 'warn', cod: '—',   f: '2026.02.25', h: '08:06:07', u: 'AROJAS', fase: 'pt' },
+    { soc: 'CO02', tipo: '01', doc: '90000001', rango: 'SETT9001',  st: 'ok',   cod: '200', f: '2026.02.25', h: '09:14:52', u: 'CARIAS' },
+    { soc: 'CO02', tipo: '92', doc: '80000003', rango: 'ND800001',  st: 'ok',   cod: '200', f: '2026.02.25', h: '10:02:31', u: 'AROJAS' },
+    { soc: 'CO02', tipo: '01', doc: '90000002', rango: 'SETT9002',  st: 'err',  cod: '500', f: '2026.02.25', h: '11:47:09', u: 'CARIAS', fase: 'cpi',
+      msg: 'Error en CPI: sin respuesta del servicio del PT (tiempo de espera agotado). Mensaje de ejemplo.' },
+    { soc: 'CO01', tipo: '01', doc: '90000010', rango: 'SETT9010',  st: 'ok',   cod: '200', f: '2026.02.26', h: '07:58:44', u: 'AROJAS' },
+    { soc: 'CO02', tipo: '91', doc: '80000004', rango: 'NC800002',  st: 'ok',   cod: '200', f: '2026.02.26', h: '08:21:16', u: 'AROJAS', fr: '2026.02.26', hr: '09:03:40', ur: 'CARIAS' },
+    { soc: 'CO01', tipo: '01', doc: '90000011', rango: 'SETT9011',  st: 'warn', cod: '—',   f: '2026.02.26', h: '08:40:02', u: 'CARIAS', fase: 'pt' }
+  ];
+
+  let rows = [], filt = { q: '', soc: '', tipo: '', st: '' }, selId = null;
+
+  function reset() {
+    rows = SEED.map(r => Object.assign({ fr: '', hr: '', ur: '', fase: r.st === 'ok' ? 'dian' : r.fase }, r, {
+      cufe: hex(r.rango + 'cufe', 96),
+      track: uuid(r.rango + 'track'),
+      soporte: hex(r.rango + 'sop', 40),
+      cpi: 'AG' + hex(r.rango + 'cpi', 26).toUpperCase()
+    }));
+  }
+
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const stHtml = st => `<span class="st ${st}"><svg viewBox="0 0 20 20" aria-hidden="true">${ST[st].svg}</svg>${ST[st].txt}</span>`;
+  const isNote = t => t === '91' || t === '92';
+
+  function visible() {
+    const q = filt.q.trim().toLowerCase();
+    return rows.filter(r =>
+      (!filt.soc || r.soc === filt.soc) && (!filt.tipo || r.tipo === filt.tipo) && (!filt.st || r.st === filt.st) &&
+      (!q || r.doc.includes(q) || r.rango.toLowerCase().includes(q) || r.cufe.includes(q)));
+  }
+
+  function renderKpis() {
+    const c = { '': rows.length, ok: 0, err: 0, warn: 0 };
+    rows.forEach(r => c[r.st]++);
+    const items = [['', 'Documentos'], ['ok', 'Aceptados'], ['err', 'Rechazados / error'], ['warn', 'En proceso']];
+    $('m-kpis').innerHTML = items.map(([k, l]) =>
+      `<button type="button" class="m-kpi ${filt.st === k ? 'on' : ''}" data-st="${k}">
+         ${k ? `<span class="st ${k}"><svg viewBox="0 0 20 20" aria-hidden="true">${ST[k].svg}</svg></span>` : ''}
+         <span class="n">${c[k]}</span><span class="l">${l}</span></button>`).join('');
+  }
+
+  function renderRows() {
+    const v = visible();
+    $('m-rows').innerHTML = v.length ? v.map(r => `
+      <tr data-id="${r.rango}" class="${r.rango === selId ? 'sel' : ''}">
+        <td>${stHtml(r.st)}</td>
+        <td>${r.soc}</td>
+        <td>${r.tipo} <span class="sub">· ${TIPOS[r.tipo]}</span></td>
+        <td class="mono">${r.doc}</td>
+        <td class="mono">${r.rango}</td>
+        <td class="mono">${r.cod}</td>
+        <td>${r.f} <span class="sub">${r.h}</span></td>
+        <td>${r.u}</td>
+        <td>${r.fr ? `${r.fr} <span class="sub">${r.hr} · ${r.ur}</span>` : '<span class="sub">—</span>'}</td>
+        <td><button type="button" class="m-file" data-act="pdf">PDF</button><button type="button" class="m-file" data-act="xml">XML</button></td>
+        <td class="chev">›</td>
+      </tr>`).join('')
+      : '<tr class="m-empty"><td colspan="11">No hay documentos con estos filtros.</td></tr>';
+  }
+
+  function steps(r) {
+    // estado de cada tramo: done / fail / wait / idle
+    const s = { s4: 'done', cpi: 'done', pt: 'done', dian: 'done' };
+    if (r.fase === 'cpi') { s.cpi = 'fail'; s.pt = 'idle'; s.dian = 'idle'; }
+    else if (r.fase === 'pt') { s.dian = 'wait'; }
+    else if (r.st === 'err') { s.dian = 'fail'; }
+    const ic = { done: '✓', fail: '✕', wait: '…', idle: '' };
+    const ds = {
+      s4: 'XML UBL 2.1 generado por el programa Z',
+      cpi: s.cpi === 'fail' ? 'Error al entregar al PT' : 'Mensaje procesado',
+      pt: s.pt === 'idle' ? 'Sin recibir' : 'Recibido y transmitido',
+      dian: { done: 'Documento validado', fail: 'Documento rechazado', wait: 'Esperando respuesta', idle: 'Sin enviar' }[s.dian]
+    };
+    const nm = { s4: 'SAP S/4HANA', cpi: 'SAP CPI', pt: 'Proveedor Tecnológico', dian: 'DIAN' };
+    return '<div class="trk">' + Object.keys(s).map(k =>
+      `<div class="s ${s[k]}"><span class="ic">${ic[s[k]]}</span><div class="nm">${nm[k]}</div><div class="ds">${ds[k]}</div></div>`).join('') + '</div>';
+  }
+
+  function wsResponse(r) {
+    if (r.fase === 'cpi') return 'Sin respuesta del web service del PT.';
+    if (r.fase === 'pt') return '{\n  "StatusCode": "202",\n  "TrackId": "' + r.track + '"\n}\n// Documento recibido; pendiente de respuesta de la DIAN (ejemplo)';
+    return JSON.stringify(r.st === 'ok'
+      ? { StatusCode: '200', TrackId: r.track }
+      : { StatusCode: r.cod, TrackId: r.track, ErrorMessage: 'Ver detalle del rechazo' }, null, 2);
+  }
+
+  function renderDetail() {
+    const r = rows.find(x => x.rango === selId);
+    const d = $('m-detail');
+    if (!r) { d.classList.remove('open'); return; }
+    const canResend = r.st === 'err';
+    const idLabel = isNote(r.tipo) ? 'CUDE' : 'CUFE';
+    d.innerHTML = `
+      <div class="d-head">
+        <div class="d-top">
+          <div><h3>${r.rango}</h3><div class="d-sub">Doc. SAP ${r.doc} · ${r.tipo} ${TIPOS[r.tipo]} · Sociedad ${r.soc}</div></div>
+          <button type="button" class="d-close" data-act="close" aria-label="Cerrar detalle">✕</button>
+        </div>
+        <div class="d-actions">
+          ${stHtml(r.st)}
+          <span style="flex:1"></span>
+          <button type="button" class="btn" data-act="xml">Ver XML</button>
+          <button type="button" class="btn" data-act="pdf">Ver PDF</button>
+          <button type="button" class="btn pri" data-act="resend" ${canResend ? '' : 'disabled'}
+            title="${canResend ? 'Reenviar el documento' : 'Solo se reenvían documentos rechazados o con error'}">Reenviar</button>
+        </div>
+      </div>
+      <div class="d-body">
+        <div class="d-sec"><h4>Trazabilidad</h4>${steps(r)}
+          ${r.st === 'err' && r.msg ? `<div class="d-msg">${esc(r.msg)}</div>` : ''}</div>
+        <div class="d-sec"><h4>Datos del envío</h4>
+          <div class="d-grid">
+            <div><div class="k">Fecha / hora de emisión</div><div class="v">${r.f} · ${r.h}</div></div>
+            <div><div class="k">Usuario envío</div><div class="v">${r.u}</div></div>
+            <div><div class="k">Fecha / hora de reenvío</div><div class="v">${r.fr ? r.fr + ' · ' + r.hr : '—'}</div></div>
+            <div><div class="k">Usuario reenvío</div><div class="v">${r.ur || '—'}</div></div>
+            <div><div class="k">Resultado del proceso</div><div class="v">${ST[r.st].txt}</div></div>
+            <div><div class="k">Código del mensaje</div><div class="v">${r.cod}</div></div>
+          </div></div>
+        <div class="d-sec"><h4>Respuesta del web service</h4><div class="d-pre">${esc(wsResponse(r))}</div></div>
+        <div class="d-sec"><h4>Identificadores</h4>
+          <div class="d-id"><div class="k">${idLabel}</div><div class="v">${r.cufe}</div></div>
+          <div class="d-id"><div class="k">ID para soporte interno</div><div class="v">${r.soporte}</div></div>
+          <div class="d-id"><div class="k">ID de mensaje CPI</div><div class="v">${r.cpi}</div></div>
+        </div>
+      </div>`;
+    d.classList.add('open');
+  }
+
+  function render() { renderKpis(); renderRows(); renderDetail(); }
+
+  let tt;
+  function toast(msg) {
+    const t = $('m-toast'); t.textContent = msg; t.classList.add('show');
+    clearTimeout(tt); tt = setTimeout(() => t.classList.remove('show'), 2600);
+  }
+
+  function xml(r) {
+    const note = isNote(r.tipo);
+    const rootTag = r.tipo === '91' ? 'CreditNote' : r.tipo === '92' ? 'DebitNote' : 'Invoice';
+    const T = s => `<span class="xt">${esc(s)}</span>`, A = s => `<span class="xa">${esc(s)}</span>`, C = s => `<span class="xc">${esc(s)}</span>`;
+    const lines = [
+      T('<?xml version="1.0" encoding="UTF-8"?>'),
+      T(`<${rootTag}`) + ' ' + A(`xmlns="urn:oasis:names:specification:ubl:schema:xsd:${rootTag}-2"`) + T('>'),
+      '  ' + T('<cbc:UBLVersionID>') + 'UBL 2.1' + T('</cbc:UBLVersionID>'),
+      '  ' + T('<cbc:ProfileExecutionID>') + '2' + T('</cbc:ProfileExecutionID>') + '  ' + C('<!-- 2 = pruebas -->'),
+      '  ' + T('<cbc:ID>') + r.rango + T('</cbc:ID>'),
+      '  ' + T('<cbc:UUID') + ' ' + A(`schemeName="${note ? 'CUDE' : 'CUFE'}-SHA384"`) + T('>'),
+      '    ' + r.cufe,
+      '  ' + T('</cbc:UUID>'),
+      '  ' + T('<cbc:IssueDate>') + r.f.replace(/\./g, '-') + T('</cbc:IssueDate>'),
+      '  ' + T('<cbc:IssueTime>') + r.h + '-05:00' + T('</cbc:IssueTime>'),
+      r.tipo === '91' ? '  ' + T('<cbc:CreditNoteTypeCode>') + '91' + T('</cbc:CreditNoteTypeCode>')
+        : r.tipo === '92' ? null : '  ' + T('<cbc:InvoiceTypeCode>') + r.tipo + T('</cbc:InvoiceTypeCode>'),
+      '  ' + T('<cbc:DocumentCurrencyCode>') + (r.tipo === '02' ? 'USD' : 'COP') + T('</cbc:DocumentCurrencyCode>'),
+      '  ' + C('<!-- … emisor, adquirente, líneas, impuestos y totales … -->'),
+      T(`</${rootTag}>`)
+    ].filter(Boolean);
+    $('m-modal-t').textContent = `Request enviado al PT · ${r.rango}`;
+    $('m-modal-xml').innerHTML = lines.join('\n');
+    $('m-modal').classList.add('open');
+  }
+
+  function now() {
+    const d = new Date(), p = n => String(n).padStart(2, '0');
+    return { f: `${d.getFullYear()}.${p(d.getMonth() + 1)}.${p(d.getDate())}`, h: `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}` };
+  }
+
+  function resend(r) {
+    const t = now();
+    Object.assign(r, { st: 'warn', cod: '—', fase: 'pt', fr: t.f, hr: t.h, ur: 'USUARIO_DEMO' });
+    render(); toast('Documento reenviado. Esperando respuesta del PT…');
+    setTimeout(() => {
+      Object.assign(r, { st: 'ok', cod: '200', fase: 'dian', track: uuid(r.rango + t.h) });
+      render(); toast(`${r.rango}: la DIAN aceptó el documento.`);
+    }, 2600);
+  }
+
+  // Eventos
+  root.addEventListener('click', e => {
+    const kpi = e.target.closest('.m-kpi');
+    if (kpi) { filt.st = kpi.dataset.st; $('f-st').value = filt.st; render(); return; }
+
+    const act = e.target.closest('[data-act]');
+    const tr = e.target.closest('tr[data-id]');
+    const r = rows.find(x => x.rango === (tr ? tr.dataset.id : selId));
+
+    if (act) {
+      const a = act.dataset.act;
+      if (a === 'close') { selId = null; render(); }
+      else if (a === 'xml' && r) xml(r);
+      else if (a === 'pdf' && r) toast(`En la app real se abre la representación gráfica de ${r.rango}.`);
+      else if (a === 'resend' && r && r.st === 'err') resend(r);
+      return;
+    }
+    if (tr) { selId = tr.dataset.id; render(); }
+  });
+
+  $('m-modal-x').addEventListener('click', () => $('m-modal').classList.remove('open'));
+  $('m-modal').addEventListener('click', e => { if (e.target.id === 'm-modal') $('m-modal').classList.remove('open'); });
+
+  $('f-q').addEventListener('input', e => { filt.q = e.target.value; renderRows(); });
+  $('f-soc').addEventListener('change', e => { filt.soc = e.target.value; renderRows(); });
+  $('f-tipo').addEventListener('change', e => { filt.tipo = e.target.value; renderRows(); });
+  $('f-st').addEventListener('change', e => { filt.st = e.target.value; render(); });
+  $('m-reset').addEventListener('click', () => {
+    reset(); filt = { q: '', soc: '', tipo: '', st: '' }; selId = null;
+    ['f-q', 'f-soc', 'f-tipo', 'f-st'].forEach(id => $(id).value = '');
+    $('m-modal').classList.remove('open'); render(); toast('Demo restablecida.');
+  });
+
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape') return;
+    if ($('m-modal').classList.contains('open')) $('m-modal').classList.remove('open');
+    else if (selId) { selId = null; render(); }
+  });
+
+  reset(); render();
+})();
+</script>
+</body>
+</html>
