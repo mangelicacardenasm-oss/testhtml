@@ -693,16 +693,16 @@
   // fase: hasta dónde llegó el documento → 'dian' (respuesta DIAN), 'pt' (esperando DIAN), 'cpi' (falló en CPI)
   const SEED = [
     { soc: 'CO02', tipo: '01', doc: '90000000', rango: 'SETT9000',  st: 'ok',   cod: '200', f: '2026.02.25', h: '08:06:07', u: 'MCARDENAS' },
-    { soc: 'CO02', tipo: '02', doc: '80000001', rango: 'SETT80001', st: 'err',  cod: '400', f: '2026.02.25', h: '08:06:07', u: 'MCARDENAS', fr: '2026.02.26', hr: '08:10:07', ur: 'AAVELLA', fase: 'dian',
+    { soc: 'CO02', tipo: '02', doc: '80000001', rango: 'SETT80001', st: 'err',  cod: '400', f: '2026.02.25', h: '08:06:07', u: 'MCARDENAS', fr: '2026.02.26', hr: '08:10:07', ur: 'AROJAS', fase: 'dian',
       msg: 'Rechazo DIAN: el documento no superó una regla de validación (mensaje de ejemplo).' },
     { soc: 'CO02', tipo: '91', doc: '80000002', rango: 'NC800001',  st: 'warn', cod: '—',   f: '2026.02.25', h: '08:06:07', u: 'MCARDENAS', fase: 'pt' },
-    { soc: 'CO02', tipo: '01', doc: '90000001', rango: 'SETT9001',  st: 'ok',   cod: '200', f: '2026.02.25', h: '09:14:52', u: 'AAVELLA' },
+    { soc: 'CO02', tipo: '01', doc: '90000001', rango: 'SETT9001',  st: 'ok',   cod: '200', f: '2026.02.25', h: '09:14:52', u: 'AROJAS' },
     { soc: 'CO02', tipo: '92', doc: '80000003', rango: 'ND800001',  st: 'ok',   cod: '200', f: '2026.02.25', h: '10:02:31', u: 'MCARDENAS' },
-    { soc: 'CO02', tipo: '01', doc: '90000002', rango: 'SETT9002',  st: 'err',  cod: '500', f: '2026.02.25', h: '11:47:09', u: 'AAVELLA', fase: 'cpi',
+    { soc: 'CO02', tipo: '01', doc: '90000002', rango: 'SETT9002',  st: 'err',  cod: '500', f: '2026.02.25', h: '11:47:09', u: 'AROJAS', fase: 'cpi',
       msg: 'Error en CPI: sin respuesta del servicio del PT (tiempo de espera agotado). Mensaje de ejemplo.' },
     { soc: 'CO01', tipo: '01', doc: '90000010', rango: 'SETT9010',  st: 'ok',   cod: '200', f: '2026.02.26', h: '07:58:44', u: 'MCARDENAS' },
-    { soc: 'CO02', tipo: '91', doc: '80000004', rango: 'NC800002',  st: 'ok',   cod: '200', f: '2026.02.26', h: '08:21:16', u: 'MCARDENAS', fr: '2026.02.26', hr: '09:03:40', ur: 'AAVELLA' },
-    { soc: 'CO01', tipo: '01', doc: '90000011', rango: 'SETT9011',  st: 'warn', cod: '—',   f: '2026.02.26', h: '08:40:02', u: 'AAVELLA', fase: 'pt' }
+    { soc: 'CO02', tipo: '91', doc: '80000004', rango: 'NC800002',  st: 'ok',   cod: '200', f: '2026.02.26', h: '08:21:16', u: 'MCARDENAS', fr: '2026.02.26', hr: '09:03:40', ur: 'AROJAS' },
+    { soc: 'CO01', tipo: '01', doc: '90000011', rango: 'SETT9011',  st: 'warn', cod: '—',   f: '2026.02.26', h: '08:40:02', u: 'AROJAS', fase: 'pt' }
   ];
 
   let rows = [], filt = { q: '', soc: '', tipo: '', st: '' }, selId = null;
